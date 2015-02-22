@@ -1,7 +1,7 @@
 ---
 title: "Predicting Weight-Lifting Performance"
 author: "Rudy"
-date: "02/22/2015"
+date: "2015/02/22"
 output: html_document
 ---
 
@@ -18,20 +18,20 @@ raw.training <- read.csv("data/pml-training.csv")
 
 ```
 
-# Introduction
+## Introduction
 
-This is an assignment for Johns Hopkins University's, 
+This is an assignment for Johns Hopkins University's 
 *[Data Science Specialisation](https://www.coursera.org/specialization/jhudatascience/1)*
-courses being run on Coursera. 
+course being run on Coursera. 
 
 It attempts to predict the performance of weight-lifting exercises using
 measurements from devices recording bodily position and acceleration. 
 We've used bootstrap aggregated decision trees and achieved a high
 accuracy rate of 0.99 for both in-sample (validated using 10-fold cross-validation
-repeated three times) and out-sample (validated using a hold-out sample)
+repeated three times) and estimated out-sample (validated using a hold-out sample)
 accuracies. 
 
-# Data
+## Data
 
 The data consists of `r nrow(raw.training)` observations and `r ncol(raw.training)`
 variables. The data is available from Velloso *et al*, downloadable 
@@ -114,7 +114,8 @@ ggcorr(weights.training[,7:158], angle=-45, hjust=1.05, size=2)
 
 Notice that we have quite a few variables that seem to contain mostly missing
 values. These will prove problematic for prediction purposes. Indeed, let's remove
-all variables that consist mostly of missing values.
+all variables that consist mostly of missing values. Also notice that there are 
+a number if highly correlated variables as well.
 
 ```{r}
 
@@ -136,13 +137,13 @@ table(weights.training$cvtd_timestamp, weights.training$classe)
 ```
 
 We remove all time variables from our data set so us to not skew our predictor
-and make it appear more accurate than it would be with general data. 
+and make it appear more accurate than it would be with out-of-sample data. 
 
 ```{r}
 weights.training <- weights.training %>% select(-raw_timestamp_part_1, -raw_timestamp_part_2, -cvtd_timestamp)
 ```
 
-This leaves our final training set as `r nrow(weights.training)` observations
+This leaves our final training set at `r nrow(weights.training)` observations
 of `r ncol(weights.training)` variables. As a sanity check to see how well 
 we could predict some of these classes, we compare the frequency of each class
 to one another:
@@ -158,7 +159,7 @@ None of the classes are considerably smaller than any of the others, so we
 should not have low positive-predictive values for these classes.
 
 
-# Model construction and training
+## Model construction and training
 
 Our model is fairly simple. It is a bootstrap-aggregated decision tree model 
 predicting our response variable (*classe*) using all the remaining variables. 
@@ -184,13 +185,14 @@ modFit <- train(classe ~ ., method="treebag", data=weights.training,
 
 ```
 
-We obtain a good in-sample accuracy of `r round(modFit$results$Accuracy, 3)`:
+We obtain a good in-sample accuracy of `r round(modFit$results$Accuracy, 3)` 
+with low standard deviation:
 
 ```{r}
 modFit
 ```
 
-Let us examine the out-of-sample accuracy using the held-back testing sample:
+Let us estimate the out-of-sample accuracy using the held-back testing sample:
 
 ```{r, message=FALSE}
 results <- predict(modFit, newdata=weights.testing)
@@ -205,7 +207,7 @@ accuracy
 
 We estimate that our out-of-sample accuracy is `r round(accuracy, 3)`. 
 
-# Conclusion
+## Conclusion
 Using bootstrap aggregated decision trees we have achieved an 
 in-sample accuracy of `r round(modFit$results$Accuracy, 3)`
 and estimate our out-of-sample accuracy to be `r round(accuracy, 3)`.
