@@ -22,7 +22,7 @@ raw.training <- read.csv("data/pml-training.csv")
 
 This is an assignment for Johns Hopkins University's 
 *[Data Science Specialisation](https://www.coursera.org/specialization/jhudatascience/1)*
-course being run on Coursera. 
+series of courses being run on Coursera. 
 
 It attempts to predict the performance of weight-lifting exercises using
 measurements from devices recording bodily position and acceleration. 
