@@ -27,8 +27,8 @@ course being run on Coursera.
 It attempts to predict the performance of weight-lifting exercises using
 measurements from devices recording bodily position and acceleration. 
 We've used bootstrap aggregated decision trees and achieved a high
-accuracy rate of 0.99 for both in-sample (validated using 10-fold cross-validation
-repeated three times) and estimated out-sample (validated using a hold-out sample)
+accuracy rate of 0.99 for both in-sample (using 10-fold cross-validation
+repeated three times) and estimated out-sample (using a hold-out sample)
 accuracies. 
 
 ## Data
@@ -36,7 +36,7 @@ accuracies.
 The data consists of `r nrow(raw.training)` observations and `r ncol(raw.training)`
 variables. The data is available from Velloso *et al*, downloadable 
 from [http://groupware.les.inf.puc-rio.br/har](http://groupware.les.inf.puc-rio.br/har).
-It is licensed under the Creative Commons Attribution-ShareAlike license. 
+It is licensed under the *Creative Commons Attribution-ShareAlike license*. 
 
 Our first step is to clean as much of this data as we can. The data has
 two main problems:
@@ -115,7 +115,7 @@ ggcorr(weights.training[,7:158], angle=-45, hjust=1.05, size=2)
 Notice that we have quite a few variables that seem to contain mostly missing
 values. These will prove problematic for prediction purposes. Indeed, let's remove
 all variables that consist mostly of missing values. Also notice that there are 
-a number if highly correlated variables as well.
+a number of highly correlated variables as well, which we will deal with below.
 
 ```{r}
 
