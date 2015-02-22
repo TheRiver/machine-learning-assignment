@@ -4,6 +4,5 @@
 *.png
 *.Rproj
 report_cache/
-report_files/
 .Rproj.user
 *.txt
