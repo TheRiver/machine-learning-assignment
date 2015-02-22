@@ -1,0 +1,186 @@
+---
+title: "Predicting Weights"
+author: "Rudy"
+date: "02/22/2015"
+output: html_document
+---
+
+```{r, echo=FALSE, message=FALSE}
+library(dplyr)
+library(caret)
+library(doMC)
+
+registerDoMC(cores = 5)
+```
+
+```{r echo=FALSE, message=FALSE, cache=TRUE}
+raw.training <- read.csv("data/pml-training.csv")
+
+```
+
+# Data
+
+The data consists of `r nrow(raw.training)` observations and `r ncol(raw.training)`
+variables. Our first step is to clean as much of this data as we can. The data have
+two main problems:
+
+- Unknown values are encoded as both NA and empty strings
+- There are variables containing the value #DIV/0!. 
+
+Both of the above we will encode as `r NA` values. The following function 
+does this on vectors of values:
+
+```{r}
+clean.column <- function(col) {
+    col[col == "" | col == "#DIV/0!"] <- NA
+    as.numeric(col)
+}
+```
+
+The data can then be read in and cleaned using the following function:
+
+
+```{r, cache=TRUE}
+library(dplyr)
+
+read.data <- function() {
+    # We want to remove the initial X variable, which is just a line number.
+    data <- read.csv('data/pml-training.csv') %>% select(-X)
+
+    # The first six variables are integers and factor variables
+    front.matter <- data %>% select(1:6)
+
+    # The last column is our response variable
+    response <- data %>% select(classe)
+
+    # All the intervening variables are dirty numeric variables.
+    # Here we detect missing and bad values.
+    numeric.columns <- 7:(ncol(data) - 1)
+    cleaned <- lapply(numeric.columns, function(col.i) clean.column(data[, col.i]))
+    names(cleaned) <- colnames(data[, numeric.columns])
+    cleaned <- as.data.frame(cleaned)
+    cbind(front.matter, cleaned, response)
+}
+
+weights <- read.data()
+```
+
+Notice that it strips the "X" column, which was merely a line number.
+
+Our next step is to partition our data in to training and testing data sets.
+We will hold back a third of the data for testing:
+
+```{r, cache=TRUE}
+library(caret)
+set.seed(123)
+inTrain <- createDataPartition(y = weights$classe, p = 2/3, list=F)
+weights.training <- weights[inTrain,]
+weights.testing <- weights[-inTrain,]
+```
+Our training data consists of `r nrow(weights.training)` observations, and our
+testing of `r nrow(weights.testing) observations.
+
+The first seven variables contain participant names, dates, and various 
+other interesting metadata. The last column contains the class of the exercise
+that we wish to predict. The remaining columns contain numerical data. There
+are a lot of these, and our first question is to examine the state
+of the missing data and the correlations between them. We can do this by plotting
+a correlation matrix as a heat map:
+
+```{r}
+library(ggplot2)
+library(GGally)
+
+numeric.columns <- 7:158
+ggcorr(weights.training[,numeric.columns], angle=-45, hjust=1.05, size=2)
+
+```
+
+Notice that we have quite a few variables that seem to contain mostly missing
+values. We will be removing all variables that contain a majority missing values.
+
+```{r}
+
+weights.training <- weights.training %>% 
+    select(which(sapply(1:159, function(i) sum(is.na(weights.training[,i]))) <= nrow(weights.training) / 2))
+
+```
+
+This has reduced us from 159 variables, to `r ncol(weights.training)` variables. 
+
+Next, we want to make sure that we remove any metadata that will be strongly correlated
+to our response variable but that isn't necessarily part of what we wish to model.
+We have already removed one such variable (X, the line number), but notice 
+that time is another variable strongly correlated to our response variable:
+
+
+```{r}
+table(weights.training$cvtd_timestamp, weights.training$classe)
+```
+
+We remove all time variables from our data set so us to not skew our predictor
+and make it appear more accurate than it would be with general data. 
+
+```{r}
+weights.training <- weights.training %>% select(-raw_timestamp_part_1, -raw_timestamp_part_2, -cvtd_timestamp)
+```
+
+This leaves our final training set as `r nrow(weights.training)` observations
+of `r ncol(weights.training)` variables. As a sanity check to see how well 
+we could possibly ever predict some of these classes, we compare the
+frequency of each class to one another:
+
+```{r}
+frequency <- as.data.frame(table(weights.training$classe))
+names(frequency) <- c("class", "count")
+qplot(factor(class), count, data = frequency, geom="bar", stat="identity") + theme_light() +
+    xlab("Response Class")
+```
+
+
+# Model construction and training
+
+Our model is fairly simple. It is a bagged decision tree model predicting our response 
+variable (classe) using all the remaining variables. We use *principal component analysis*
+to remove the redundent and highly correlated variables that we can see in the above
+correlation heat-map. 
+
+The model is trained using 10-fold cross-validation repeated three times, 
+set up using the following training control in caret:
+
+```{r}
+fitControl <- trainControl(method = "repeatedcv",
+                           number = 10,
+                           repeats = 3)
+```
+
+
+```{r, cache=TRUE, message=FALSE}
+
+modFit <- train(classe ~ ., method="treebag", data=weights.training,
+                trControl = fitControl,
+                preprocess="pca")
+
+```
+
+We obtain a good in-sample accuracy of `r round(modFit$results$Accuracy, 3)`:
+
+```{r}
+modFit
+```
+
+Let us examine the out-sample accuracy using the held-back testing sample:
+
+```{r}
+results <- predict(modFit, newdata=weights.testing)
+confusion <- table(results, weights.testing$classe)
+confusion
+```
+
+```{r}
+accuracy <- sum(diag(confusion)) / sum(confusion)
+accuracy
+```
+
+We estimate that our out-of-sample accuracy is `r round(accuracy, 3)`. 
+
